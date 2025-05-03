@@ -1,0 +1,31 @@
+# 🚗 CarFact — Armenian VIN Check Telegram Bot
+
+🧾 Check the true history of any used vehicle by its VIN directly inside Telegram.
+
+## 🔧 Features
+
+- ✅ VIN validation & parsing
+- 📦 FastAPI backend (Python)
+- 🛢 PostgreSQL log storage (SQLAlchemy)
+- 📲 Telegram bot with inline keyboards & commands
+- 🧠 Command: `/start`, `/history`, direct VIN input
+- 💾 Request history per user
+- 🔐 Ready for future monetization
+
+## 🛠 Tech Stack
+
+- Python 3.11
+- FastAPI + Uvicorn
+- PostgreSQL + SQLAlchemy
+- python-telegram-bot 20.x
+- Render.com (for hosting)
+
+## 🚀 Local Development
+
+```bash
+git clone git@github.com:brainforcegit/vin-bot.git
+cd vin-bot
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload
