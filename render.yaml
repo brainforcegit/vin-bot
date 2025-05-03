@@ -6,4 +6,4 @@ services:
     startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port 10000"
     envVars:
       - key: DATABASE_URL
-        value: postgres://user:password@host:port/dbname
+        value: postgresql://carfact_user:fFvozmE6hFeIp5ROrpax88zGFgizIO56@dpg-d0av94qdbo4c73c8r7tg-a/carfact

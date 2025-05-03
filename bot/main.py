@@ -1,3 +1,4 @@
+# bot/main.py
 import os
 import requests
 from dotenv import load_dotenv
@@ -8,13 +9,13 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 START_TEXT = (
-    "🧾 <b>CarFact</b> — ստուգիր քո ավտոմեքենայի իրական պատմությունը ըստ VIN-ի։\n\n"
-    "🚗 Իմացիր՝\n"
-    "• քանի <b>սեփականատեր</b> է ունեցել մեքենան\n"
-    "• եղել են արդյոք <b>վթարներ</b>\n"
-    "• քանի <b>կիլոմետր</b> է անցել իրականում\n"
-    "• որտեղ և երբ է <b>ներմուծվել</b>\n\n"
-    "Սեղմիր '🔍 Ստուգել VIN'՝ ստուգումը սկսելու համար։"
+    "📟 <b>CarFact</b> — ստուգիր քո ավտոմեքենայի ջողովության պատմությունը ընդ VIN-իքրովորդֆ\n"
+    "🚗 Իմացիրթիրկրովորդֆ\n"
+    "• քանի <b>սպասարոբածեր</b> է ունեցել մեքենան\n"
+    "• եղել են արդյոք <b>վչարներ</b>\n"
+    "• քանի <b>կիլոմետր</b> է անցել վրապրականում\n"
+    "• որվ ու և երբ է <b>ներմուծվել</b>\n\n"
+    "Սեղմիր ' 🔍 Ստուգել VIN'՝ֈ ստուգումը սկսելու համարարինք։"
 )
 
 keyboard = ReplyKeyboardMarkup([["🔍 Ստուգել VIN"]], resize_keyboard=True)
@@ -33,24 +34,25 @@ async def handle_vin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             response = requests.post(
-                "http://localhost:8000/check-vin",
+                "https://carfact.onrender.com/check-vin",
                 json={
                     "vin": vin,
                     "user_id": str(update.effective_user.id)
                 },
-                timeout=5
+                timeout=10
             )
             data = response.json()
 
             if data["status"] == "ok":
-                report = data["report"]
+                r = data["report"]
                 message = (
-                    f"📄 <b>Ավտոմեքենայի պատմություն</b> ({report['vin']})\n\n"
-                    f"🚘 Մոդել: {report['model']}\n"
-                    f"👥 Սեփականատերեր: {report['owners']}\n"
-                    f"📉 Վերջին գրանցված վազքը: {report['mileage']}\n"
-                    f"🛠️ Վթար: {report['accident']}\n"
-                    f"🌍 Ներմուծվել է՝ {report['imported']}\n"
+                    f"📄 <b>Ավտոմեքենայի տվյալներ</b> ({r['vin']})\n\n"
+                    f"🏷️ Արտադրող: {r.get('make')}\n"
+                    f"🚘 Մոդել: {r.get('model')}\n"
+                    f"📆 Տարին: {r.get('year')}\n"
+                    f"🚗 Տեսակ: {r.get('vehicle_type')}\n"
+                    f"🏭 Գործարան: {r.get('plant_country')}\n"
+                    f"🚙 Մարմնի տիպը: {r.get('body_class')}"
                 )
                 await update.message.reply_html(message)
             else:
@@ -65,8 +67,7 @@ async def handle_vin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     try:
-        response = requests.get(f"http://localhost:8000/history/{user_id}", timeout=5)
-        response.raise_for_status()
+        response = requests.get(f"https://carfact.onrender.com/history/{user_id}", timeout=10)
         data = response.json()
 
         if not data["history"]:
@@ -76,7 +77,7 @@ async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = "<b>📜 Ձեր վերջին VIN ստուգումները</b>:\n\n"
         for i, item in enumerate(data["history"], 1):
             r = item["report"]
-            text += f"{i}. {r['vin']} — {r['model']}, {r['mileage']}\n"
+            text += f"{i}. {r['vin']} — {r.get('model')}, {r.get('year')}\n"
 
         await update.message.reply_html(text)
 
@@ -86,7 +87,6 @@ async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("history", handle_history))
     app.add_handler(MessageHandler(filters.Regex("^🔍 Ունեմ VIN$"), handle_vin_prompt))
