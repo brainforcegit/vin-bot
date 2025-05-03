@@ -7,8 +7,8 @@ load_dotenv()
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # ✅ исправлено
 
 # Замени на свои реальные price_id из Stripe Dashboard
-PRICE_ID_SINGLE = "price_1VIN..."
-PRICE_ID_BUNDLE3 = "price_3VIN..."
+PRICE_ID_SINGLE = "price_1RKiWLDI5pzORPnjxmsygBsZ"
+PRICE_ID_BUNDLE3 = "price_1RKiWLDI5pzORPnjxmsygBsZ"
 
 def create_vin_payment(quantity: int, telegram_user_id: str):
     if quantity == 1:
