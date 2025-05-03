@@ -1,13 +1,15 @@
 import sys
-sys.path.append("../")  # это добавит родительскую директорию в пути импорта
-
 import os
+from pathlib import Path
+
+# Абсолютный путь к родительской директории проекта vin-bot
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
+
 import requests
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-
-
 from backend.payment import create_vin_payment
 
 load_dotenv()
