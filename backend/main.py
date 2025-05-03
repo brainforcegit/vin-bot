@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import stripe
-from .database import init_db, SessionLocal, VINLog, add_vin_credits_to_user
+from .database import init_db, SessionLocal, VINLog
 import os
 
 load_dotenv()
