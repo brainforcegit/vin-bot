@@ -1,12 +1,19 @@
 import json
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from .database import init_db, SessionLocal, VINLog
+from dotenv import load_dotenv
+import stripe
+from .database import init_db, SessionLocal, VINLog, add_vin_credits_to_user
+import os
 
+load_dotenv()
 init_db()
 
 app = FastAPI()
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 class VINRequest(BaseModel):
     vin: str
@@ -74,3 +81,23 @@ def get_user_history(user_id: str):
         })
 
     return {"user_id": user_id, "history": result}
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        telegram_user_id = session["metadata"].get("telegram_user_id")
+        quantity = int(session["metadata"]["quantity"])
+        add_vin_credits_to_user(telegram_user_id, quantity)
+
+    return {"status": "success"}
