@@ -97,16 +97,9 @@ async def start_telegram_bot():
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vin_input))
 
     print("🤖 Telegram Bot is running...")
-
-    # Use Webhook instead of polling
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_webhook(
-        listen="0.0.0.0",
-        port=8080,
-        url_path=TELEGRAM_BOT_TOKEN,
-        webhook_url=f"{DOMAIN}/{TELEGRAM_BOT_TOKEN}"
-    )
+    await bot_app.updater.start_polling()
 
 @app.on_event("startup")
 async def on_startup():
