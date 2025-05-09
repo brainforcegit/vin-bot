@@ -91,27 +91,6 @@ async def start_telegram_bot():
         else:
             await update.message.reply_text("⚠️ Սխալ VIN։ Այն պետք է լինի 17 նիշ և բաղկացած լինի միայն տառերից և թվերից։")
 
-    async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = str(update.effective_user.id)
-        try:
-            response = requests.get(f"{DOMAIN}/history/{user_id}", timeout=20)
-            data = response.json()
-
-            if "history" not in data or not data["history"]:
-                await update.message.reply_text("❗Դուք դեռ չեք իրականացրել VIN ստուգում։")
-                return
-
-            history_text = "<b>📜 Ձեր վերջին VIN ստուգումները</b>:\n\n"
-            for i, item in enumerate(data["history"], 1):
-                r = item["report"]
-                history_text += f"{i}. {r['vin']} — {r.get('make', 'Unknown')} {r.get('model', 'Unknown')} ({r.get('year', 'Unknown')})\n"
-
-            await update.message.reply_html(history_text)
-
-        except Exception as e:
-            print("❌ History error:", e)
-            await update.message.reply_text("⚠️ Չհաջողվեց բերել պատմությունը։")
-
     # Add handlers
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(CommandHandler("history", handle_history))
