@@ -7,7 +7,10 @@ from fastapi import FastAPI, HTTPException, Request
 import stripe
 import requests
 from pydantic import BaseModel
-from backend.database import init_db, SessionLocal, VINLog
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
@@ -19,11 +22,27 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 DOMAIN = os.getenv("DOMAIN")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 stripe.api_key = STRIPE_SECRET_KEY
-init_db()
 
 app = FastAPI()
+
+# Database setup
+Base = declarative_base()
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+
+class VINLog(Base):
+    __tablename__ = "vin_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vin = Column(String(17), index=True)
+    user_id = Column(String(50), index=True)
+    report = Column(Text)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+Base.metadata.create_all(bind=engine)
 
 START_TEXT = (
     "📟 <b>CarFact</b> — ստուգիր քո ավտոմեքենայի պատմությունը VIN-ի միջոցով\n"
@@ -77,7 +96,9 @@ async def start_telegram_bot():
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vin_input))
 
     print("🤖 Telegram Bot is running...")
-    await bot_app.run_polling()
+    await bot_app.initialize()
+    await bot_app.start()
+    await bot_app.updater.start_polling()
 
 @app.on_event("startup")
 async def on_startup():
@@ -154,58 +175,7 @@ def get_user_history(user_id: str):
 
     return {"user_id": user_id, "history": result}
 
-@app.post("/stripe/webhook")
-async def stripe_webhook(request: Request):
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-
-    try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except ValueError as ve:
-        print("❌ ValueError in webhook:", ve)
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as se:
-        print("❌ Signature error in webhook:", se)
-        raise HTTPException(status_code=400, detail="Invalid signature")
-    except Exception as e:
-        print("❌ General error in webhook:", e)
-        raise HTTPException(status_code=500, detail="Unhandled error")
-
-    print(f"✅ Stripe Event Received: {event['type']}")
-
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        metadata = session.get("metadata", {})
-        telegram_user_id = metadata.get("telegram_user_id")
-        vin = metadata.get("vin")
-
-        if telegram_user_id and vin:
-            try:
-                response = requests.post(
-                    f"{DOMAIN}/check-vin",
-                    json={"vin": vin, "user_id": "paid:" + telegram_user_id},
-                    timeout=20
-                )
-                report = response.json().get("report", {})
-                message = format_report_message(vin, report)
-                send_telegram_message(telegram_user_id, message)
-            except Exception as e:
-                print("❌ Error during VIN check or Telegram send:", e)
-
-    return {"status": "success"}
-
 # ========== HELPERS ========== #
-
-def send_telegram_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    try:
-        requests.post(url, json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML"
-        })
-    except Exception as e:
-        print("[Telegram Error]", e)
 
 def format_report_message(vin, r):
     if not r:
@@ -220,3 +190,7 @@ def format_report_message(vin, r):
         f"🏭 Գործարան: {r.get('plant_country')}\n"
         f"🚙 Մարմնի տիպը: {r.get('body_class')}"
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
