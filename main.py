@@ -78,7 +78,7 @@ async def start_telegram_bot():
                 )
                 data = response.json()
 
-                if data["status"] == "ok":
+                if data.get("status") == "ok":
                     r = data["report"]
                     message = format_report_message(vin, r)
                     await update.message.reply_html(message)
@@ -91,14 +91,22 @@ async def start_telegram_bot():
         else:
             await update.message.reply_text("⚠️ Սխալ VIN։ Այն պետք է լինի 17 նիշ և բաղկացած լինի միայն տառերից և թվերից։")
 
+    # Add handlers
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(MessageHandler(filters.Regex("^🔍 Ստուգել VIN$"), handle_vin_prompt))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vin_input))
 
     print("🤖 Telegram Bot is running...")
+
+    # Use Webhook instead of polling
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_polling()
+    await bot_app.updater.start_webhook(
+        listen="0.0.0.0",
+        port=8000,
+        url_path=TELEGRAM_BOT_TOKEN,
+        webhook_url=f"{DOMAIN}/{TELEGRAM_BOT_TOKEN}"
+    )
 
 @app.on_event("startup")
 async def on_startup():
@@ -113,9 +121,9 @@ class VINRequest(BaseModel):
 
 # ========== ROUTES ========== #
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+@app.get("/")
+def root():
+    return {"message": "Welcome to CarFact!"}
 
 @app.post("/check-vin")
 def check_vin(data: VINRequest):
@@ -159,21 +167,12 @@ def check_vin(data: VINRequest):
         print("[API ERROR]", e)
         raise HTTPException(status_code=500, detail="Failed to fetch VIN data")
 
-@app.get("/history/{user_id}")
-def get_user_history(user_id: str):
-    db = SessionLocal()
-    logs = db.query(VINLog).filter(VINLog.user_id == user_id).order_by(VINLog.timestamp.desc()).limit(10).all()
-    db.close()
-
-    result = []
-    for log in logs:
-        result.append({
-            "vin": log.vin,
-            "timestamp": log.timestamp.isoformat(),
-            "report": json.loads(log.report)
-        })
-
-    return {"user_id": user_id, "history": result}
+@app.post(f"/{TELEGRAM_BOT_TOKEN}")
+async def telegram_webhook(request: Request):
+    json_data = await request.json()
+    bot_app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    await bot_app.updater.process_update(Update.de_json(json_data, bot_app.bot))
+    return {"status": "ok"}
 
 # ========== HELPERS ========== #
 
