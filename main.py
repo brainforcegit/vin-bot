@@ -103,7 +103,7 @@ async def start_telegram_bot():
     await bot_app.start()
     await bot_app.updater.start_webhook(
         listen="0.0.0.0",
-        port=8000,
+        port=8080,
         url_path=TELEGRAM_BOT_TOKEN,
         webhook_url=f"{DOMAIN}/{TELEGRAM_BOT_TOKEN}"
     )
