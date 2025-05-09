@@ -1,6 +1,17 @@
 services:
   - type: web
-    name: carfact
+    name: carfact-backend
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000"
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://carfact_user:fFvozmE6hFeIp5ROrpax88zGFgizIO56@dpg-d0av94qdbo4c73c8r7tg-a/carfact
+      - key: TELEGRAM_TOKEN
+        value: "т8050304909:AAG5FMrhIUjWKDsLp41pItoC4bBQYACGXOQ"
+      - key: STRIPE_SECRET_KEY
+        value: "sk_test_51MGaBODI5pzORPnjyszfRxd501BGv6vL8fiKQR9kx2GPf4oaz6R5F9sMb8rN1Snd6xOfnGYZ3LCBV4iP4xbEFgNt00W4ErhfZL"
+      - key: STRIPE_WEBHOOK_SECRET
+        value: "wc_1RLNMsDI5pzORPnjVImPcquj"
+      - key: DOMAIN
+        value: "https://carfact.onrender.com"
