@@ -91,8 +91,30 @@ async def start_telegram_bot():
         else:
             await update.message.reply_text("⚠️ Սխալ VIN։ Այն պետք է լինի 17 նիշ և բաղկացած լինի միայն տառերից և թվերից։")
 
+    async def handle_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(update.effective_user.id)
+        try:
+            response = requests.get(f"{DOMAIN}/history/{user_id}", timeout=20)
+            data = response.json()
+
+            if "history" not in data or not data["history"]:
+                await update.message.reply_text("❗Դուք դեռ չեք իրականացրել VIN ստուգում։")
+                return
+
+            history_text = "<b>📜 Ձեր վերջին VIN ստուգումները</b>:\n\n"
+            for i, item in enumerate(data["history"], 1):
+                r = item["report"]
+                history_text += f"{i}. {r['vin']} — {r.get('make', 'Unknown')} {r.get('model', 'Unknown')} ({r.get('year', 'Unknown')})\n"
+
+            await update.message.reply_html(history_text)
+
+        except Exception as e:
+            print("❌ History error:", e)
+            await update.message.reply_text("⚠️ Չհաջողվեց բերել պատմությունը։")
+
     # Add handlers
     bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CommandHandler("history", handle_history))
     bot_app.add_handler(MessageHandler(filters.Regex("^🔍 Ստուգել VIN$"), handle_vin_prompt))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vin_input))
 
@@ -159,6 +181,22 @@ def check_vin(data: VINRequest):
     except Exception as e:
         print("[API ERROR]", e)
         raise HTTPException(status_code=500, detail="Failed to fetch VIN data")
+
+@app.get("/history/{user_id}")
+def get_user_history(user_id: str):
+    db = SessionLocal()
+    logs = db.query(VINLog).filter(VINLog.user_id == user_id).order_by(VINLog.timestamp.desc()).limit(10).all()
+    db.close()
+
+    history = []
+    for log in logs:
+        history.append({
+            "vin": log.vin,
+            "timestamp": log.timestamp.isoformat(),
+            "report": json.loads(log.report)
+        })
+
+    return {"user_id": user_id, "history": history}
 
 @app.post(f"/{TELEGRAM_BOT_TOKEN}")
 async def telegram_webhook(request: Request):
